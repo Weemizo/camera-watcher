@@ -1,9 +1,11 @@
 name: camera-watch
 
 on:
+  # Główny wyzwalacz: cron-job.org co 15 min wywołuje workflow_dispatch przez API GitHuba.
+  # Harmonogram GitHuba jest tylko zapasowy, bo potrafi gubić uruchomienia na wiele godzin.
   schedule:
-    - cron: "*/15 * * * *"   # co ~15 min (GitHub potrafi opóźnić o kilka minut)
-  workflow_dispatch:          # ręczne uruchomienie z zakładki Actions
+    - cron: "37 * * * *"
+  workflow_dispatch:
 
 permissions:
   contents: write             # zapis state.json (żeby nie dublować alertów)
@@ -17,8 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Sprawdź OLX
@@ -33,5 +35,6 @@ jobs:
             git config user.email "actions@users.noreply.github.com"
             git add state.json
             git commit -m "state: nowe alerty"
+            git pull --rebase -q
             git push
           fi
