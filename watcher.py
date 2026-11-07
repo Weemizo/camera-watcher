@@ -284,6 +284,12 @@ def main():
         print("Wysłano wiadomość testową.")
         return
 
+    # Sprawdzamy od razu, a nie dopiero przy pierwszej okazji — inaczej brak sekretu wychodzi na jaw za późno.
+    missing = [k for k in ("TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID") if not os.environ.get(k)]
+    if missing and not args.dry_run:
+        raise SystemExit(f"Brak: {', '.join(missing)}. Na GitHubie: Settings → Secrets and variables → Actions "
+                         f"→ New repository secret. Lokalnie: plik .env.")
+
     with open(CONFIG_PATH, encoding="utf-8") as f:
         cfg = json.load(f)
     if args.loop:
