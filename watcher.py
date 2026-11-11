@@ -9,6 +9,7 @@ Użycie:
   python watcher.py --loop 600   # sprawdzaj co 600 s (gdy uruchamiasz na własnym PC)
   python watcher.py --chat-id    # wypisz swoje chat_id (najpierw napisz cokolwiek do bota)
   python watcher.py --test       # wyślij wiadomość testową
+  python watcher.py --merge-state PLIK   # dołącz alerty z PLIK do state.json (używa workflow)
 """
 import argparse
 import html
@@ -211,6 +212,18 @@ def save_state(state):
         f.write("\n")
 
 
+def merge_state(other_path):
+    """Łączy alerty z innego pliku stanu: przy tej samej ofercie zostaje niższa cena."""
+    state = load_state()
+    with open(other_path, encoding="utf-8") as f:
+        other = json.load(f)
+    for oid, entry in other.get("alerted", {}).items():
+        mine = state["alerted"].get(oid)
+        if mine is None or entry["price"] < mine["price"]:
+            state["alerted"][oid] = entry
+    save_state(state)
+
+
 # ---------- główna pętla ----------
 
 def run_once(cfg, dry_run=False):
@@ -268,8 +281,12 @@ def main():
     ap.add_argument("--loop", type=int, metavar="SEK", help="sprawdzaj co SEK sekund")
     ap.add_argument("--chat-id", action="store_true", help="wypisz chat_id z ostatnich wiadomości do bota")
     ap.add_argument("--test", action="store_true", help="wyślij wiadomość testową")
+    ap.add_argument("--merge-state", metavar="PLIK", help="dołącz alerty z PLIK do state.json")
     args = ap.parse_args()
 
+    if args.merge_state:
+        merge_state(args.merge_state)
+        return
     if args.chat_id:
         updates = tg("getUpdates", {}).get("result", [])
         chats = {u["message"]["chat"]["id"]: u["message"]["chat"].get("first_name", "")

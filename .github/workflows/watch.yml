@@ -20,6 +20,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: main           # najnowszy state.json, a nie ten z chwili zakolejkowania
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
@@ -30,11 +32,19 @@ jobs:
         run: python watcher.py
       - name: Zapisz stan
         run: |
-          if [ -n "$(git status --porcelain state.json)" ]; then
-            git config user.name "camera-watch-bot"
-            git config user.email "actions@users.noreply.github.com"
+          [ -z "$(git status --porcelain state.json)" ] && exit 0
+          git config user.name "camera-watch-bot"
+          git config user.email "actions@users.noreply.github.com"
+          cp state.json "$RUNNER_TEMP/mine.json"
+          # Inne uruchomienie mogło w międzyczasie zapisać swój stan: bierzemy najnowszy i dokładamy swoje alerty.
+          for i in 1 2 3; do
+            git fetch -q origin main
+            git reset -q --hard origin/main
+            python watcher.py --merge-state "$RUNNER_TEMP/mine.json"
+            git diff --quiet state.json && exit 0
             git add state.json
-            git commit -m "state: nowe alerty"
-            git pull --rebase -q
-            git push
-          fi
+            git commit -q -m "state: nowe alerty"
+            git push -q && exit 0
+            sleep 5
+          done
+          exit 1
